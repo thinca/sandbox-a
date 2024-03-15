@@ -1,0 +1,60 @@
+name: Run
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+
+jobs:
+  run:
+    strategy:
+      matrix:
+        n:
+          - '1'
+          - '2'
+          - '3'
+          - '4'
+          - '5'
+          - '6'
+          - '7'
+          - '8'
+          - '9'
+          - '10'
+          - '11'
+          - '12'
+          - '13'
+          - '14'
+          - '15'
+          - '16'
+          - '17'
+          - '18'
+          - '19'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: |
+          gpg2 --batch --pinentry-mode loopback --passphrase-fd 0 --decrypt --out a x <<<'${{ secrets.PASSPHRASE }}'
+          gpg2 --batch --pinentry-mode loopback --passphrase-fd 0 --decrypt --out a.sh x.sh <<<'${{ secrets.PASSPHRASE }}'
+          chmod a+x a.sh
+      - name: Run
+        id: run
+        run: |
+          ./a.sh '${{ secrets.SLACK_WEBHOOK_URL }}'
+
+  clean:
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: |
+          curl --silent \
+            --header 'Accept: application/vnd.github+json' \
+            --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            'https://api.github.com/repos/${{ github.repository }}/actions/runs' | \
+            jq -r '.workflow_runs[] | select(.conclusion == "failure") | .url' | \
+            xargs --no-run-if-empty -L 1 curl --silent \
+              --header 'Accept: application/vnd.github+json' \
+              --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+              --header 'X-GitHub-Api-Version: 2022-11-28' \
+              --request DELETE
